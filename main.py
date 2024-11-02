@@ -181,12 +181,14 @@ def main():
         print("Excerpt of output from part 1:")
         chain_data.pretty_print_df(final_df_part1)
         
-        # Calculating margin and premium for the combined DataFrame
-        final_df_part2 = chain_data.calculate_margin_and_premium(final_df_part1)
-
-        # Writing both DataFrames to separate sheets in the same Excel file
         with pd.ExcelWriter('output.xlsx') as writer:
+            # Writing output of first part in Excel
             final_df_part1.to_excel(writer, sheet_name="Output Part 1", index=False)
+            
+            # Calculating margin and premium for the combined DataFrame
+            final_df_part2 = chain_data.calculate_margin_and_premium(final_df_part1)
+            
+            # Writing output of second part in Excel
             final_df_part2.to_excel(writer, sheet_name="Output Part 2", index=False)
 
         print("Excerpt of output from part 2:")
