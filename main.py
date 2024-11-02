@@ -24,6 +24,7 @@ class ChainData:
             'instrument_key': instrument_name,
             'expiry_date': expiry_date,
         }
+        # Fetching lot size data from API
         res = requests.get(f'{self.BASE_URL}/option/contract', headers=self.headers, params=params)
         if res.status_code != 200:
             print(f"Failed to fetch lot size data: {res.status_code} - {res.text}")
@@ -59,10 +60,13 @@ class ChainData:
             return pd.DataFrame()
 
         data = response.json()
+
+        # Storing lot sizes for each instrument
         self.store_lot_sizes(instrument_name, expiry_date)
+
         results = []
         for option_data in data["data"]:
-            # Get strike price and check for PE or CE side
+            # Getting strike price and checking for PE or CE side
             strike_price = option_data['strike_price']
             if side == "PE":
                 put_option = option_data.get('put_options')
@@ -85,7 +89,7 @@ class ChainData:
                         "bid/ask": highest_ask
                     })
 
-        # Convert results to DataFrame
+        # Converting results to DataFrame
         df = pd.DataFrame(results, columns=["instrument_name", "strike_price", "side", "bid/ask"])
         return df
 
@@ -103,19 +107,9 @@ class ChainData:
         
         margin_required_list = []
         premium_earned_list = []
-        
-        params = {
-            'instrument_key': "NSE_INDEX|Nifty 50",
-            'expiry_date': "2024-11-07",
-        }
 
-        # Fetch lot size data
-        res = requests.get(f'{self.BASE_URL}/option/contract', headers=self.headers, params=params)
-        lot_data = res.json()
-
-        # Iterate over each row in the DataFrame
+        # Iterating over each row in the DataFrame
         for index, row in data.iterrows():
-            # To find lot size, search for the instrument in the data
             if self.lot_sizes.get(row["instrument_name"]) and self.lot_sizes[row["instrument_name"]] > 0:
                 body = {
                     "instruments": [
@@ -127,7 +121,7 @@ class ChainData:
                         }
                     ]
                 }
-                # Request margin from API
+                # Requesting margin from API
                 response = requests.post(f'{self.BASE_URL}/charges/margin', headers=self.headers, json=body)
                 if response.status_code == 200:
                     margin_data = response.json()
@@ -135,13 +129,13 @@ class ChainData:
                 else:
                     print("Failed to fetch margin data:", response.status_code, response.text)
                 
-                # Calculate premium earned
+                # Calculating premium earned
                 premium_earned_list.append(row["bid/ask"] * self.lot_sizes[row["instrument_name"]])
             else:
                 margin_required_list.append(None)
                 premium_earned_list.append(None)
             
-        # Add new columns to the DataFrame
+        # Adding new columns to the DataFrame
         data["margin_required"] = margin_required_list
         data["premium_earned"] = premium_earned_list
         
@@ -154,11 +148,9 @@ class ChainData:
         Args:
         - df (pd.DataFrame): The DataFrame to print.
         """
-        # Combine first 5 and last 5 rows
+        # Combining first 5 and last 5 rows
         preview_df = pd.concat([df.head(5), df.tail(5)])
         print(tabulate(preview_df, headers='keys', tablefmt='pipe', showindex=False))
-
-
 
 
 def main():
@@ -174,30 +166,31 @@ def main():
     
     all_dataframes = []
 
-    # Loop over each test case
+    # Looping over each test case
     for instrument_name, expiry_date, side in test_cases:
-        # Fetch the option chain data for each test case
+        # Fetching the option chain data for each test case
         option_chain_df = chain_data.get_option_chain_data(instrument_name, expiry_date, side)
         
-        # If the option chain data is not empty, calculate margin and premium
+        # If the option chain data is not empty, adding it to the list
         if not option_chain_df.empty:
             all_dataframes.append(option_chain_df)
 
     if all_dataframes:
-        final_df = pd.concat(all_dataframes, ignore_index=True)
+        # Concatenating all dataframes from part 1
+        final_df_part1 = pd.concat(all_dataframes, ignore_index=True)
         print("Excerpt of output from part 1:")
-        chain_data.pretty_print_df(final_df)
-        final_df.to_excel('output.xlsx', sheet_name="Output Part 1", index=False)
-        print()
+        chain_data.pretty_print_df(final_df_part1)
+        
+        # Calculating margin and premium for the combined DataFrame
+        final_df_part2 = chain_data.calculate_margin_and_premium(final_df_part1)
 
-        # Calculate margin and premium for the final DataFrame
-        if not final_df.empty:
-            final_df = chain_data.calculate_margin_and_premium(final_df)
-        else:
-            print(f"No data found for {instrument_name} with expiry {expiry_date} and side {side}")
+        # Writing both DataFrames to separate sheets in the same Excel file
+        with pd.ExcelWriter('output.xlsx') as writer:
+            final_df_part1.to_excel(writer, sheet_name="Output Part 1", index=False)
+            final_df_part2.to_excel(writer, sheet_name="Output Part 2", index=False)
+
         print("Excerpt of output from part 2:")
-        chain_data.pretty_print_df(final_df)
-        final_df.to_excel('output.xlsx', sheet_name="Output Part 2", index=False)
+        chain_data.pretty_print_df(final_df_part2)
     else:
         print("No data collected across all test cases.")
 
