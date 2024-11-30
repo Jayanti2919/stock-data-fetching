@@ -1,4 +1,4 @@
-# BreakoutAI ML Internship Task Documentation
+# Stock Data Fetching in Python
 
 **By:** Jayanti Goswami  
 **GitHub:** [Jayanti2919/stock-data-fetching](https://github.com/Jayanti2919/stock-data-fetching)  
